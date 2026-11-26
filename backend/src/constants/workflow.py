@@ -14,6 +14,15 @@ class Stage(str, Enum):
     FAILED = "failed"
 
 
+class ModelStage(str, Enum):
+    PENDING = "pending"
+    TRIALING = "trialing"
+    IN_USE = "in_use"
+    RETIRED = "retired"
+    REJECTED = "rejected"
+    FAILED = "failed"
+
+
 class Decision(str, Enum):
     APPROVE = "approve"
     HOLD = "hold"

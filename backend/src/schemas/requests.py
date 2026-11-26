@@ -26,6 +26,10 @@ class RunRequest(Request):
     parameter: FiniteFloat
 
 
+class TrialRequest(Request):
+    dataset_id: Annotated[str, StringConstraints(min_length=36, max_length=36)]
+
+
 class ReviewRequest(Request):
     decision: Decision
     samples: Annotated[list[Annotated[str, StringConstraints(min_length=1, max_length=120)]], Field(max_length=500)]

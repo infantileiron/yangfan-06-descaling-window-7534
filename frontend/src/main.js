@@ -5,6 +5,7 @@ import { notice } from './hooks/forms.js';
 import { datasetsPage } from './pages/datasets.js';
 import { handoffPage } from './pages/handoff.js';
 import { loginPage } from './pages/login.js';
+import { modelsPage } from './pages/models.js';
 import { resultsPage } from './pages/results.js';
 import { runsPage } from './pages/runs.js';
 import { route } from './router/routes.js';
@@ -15,7 +16,7 @@ import { escapeHtml as e } from './utils/format.js';
 
 const app = document.querySelector('#app');
 document.body.dataset.layout = identity.theme.layout;
-const pages = { datasets: datasetsPage, runs: runsPage, results: resultsPage, handoff: handoffPage };
+const pages = { datasets: datasetsPage, runs: runsPage, models: modelsPage, results: resultsPage, handoff: handoffPage };
 let renderId = 0;
 let timer;
 

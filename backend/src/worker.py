@@ -6,7 +6,8 @@ from redis.exceptions import RedisError
 
 from src.config.settings import redis
 from src.services.executor import claim, execute
-from src.services.runs import WAKE_KEY
+from src.services.models import claim_trial, run_trial
+from src.services.notify import WAKE_KEY
 
 HEARTBEAT = Path("/tmp/worker-heartbeat")
 
@@ -19,6 +20,10 @@ def work():
             HEARTBEAT.touch()
             if job:
                 execute(job)
+                continue
+            trial = claim_trial()
+            if trial:
+                run_trial(trial)
             else:
                 try:
                     redis.brpop(WAKE_KEY, timeout=1)

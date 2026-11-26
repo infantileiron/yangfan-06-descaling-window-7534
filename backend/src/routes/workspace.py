@@ -3,8 +3,8 @@ from fastapi import APIRouter, Depends
 from src.business.profile import PROFILE
 from src.controllers import workspace
 from src.routes.dependencies import analyst, current_account, reviewer
-from src.schemas.requests import Import, ReviewRequest, RunRequest
-from src.services import audit, datasets, exports, reviews, runs
+from src.schemas.requests import Import, ReviewRequest, RunRequest, TrialRequest
+from src.services import audit, datasets, exports, models, reviews, runs
 
 router = APIRouter(dependencies=[Depends(current_account)])
 
@@ -26,6 +26,16 @@ def import_dataset(body: Import, account=Depends(analyst)):
 
 router.add_api_route("/datasets/{dataset_id}", workspace.dataset_details, methods=["GET"])
 router.add_api_route("/datasets/{dataset_id}/csv", workspace.dataset_csv, methods=["GET"])
+
+
+@router.get("/models")
+def list_models():
+    return models.list_versions()
+
+
+@router.post("/models/trials", status_code=202)
+def queue_trial(body: TrialRequest, account=Depends(analyst)):
+    return models.request_trial(body.dataset_id, account.email)
 
 
 @router.get("/runs")

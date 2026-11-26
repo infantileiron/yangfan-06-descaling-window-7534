@@ -23,7 +23,8 @@ def dataset_csv(dataset_id):
 
 def run_details(run_id):
     with Session() as db:
-        result = run_view(runs.require(db, run_id), include_result=True)
+        run = runs.require(db, run_id)
+        result = run_view(run, include_result=True, version=runs.version_ref(db, run))
         review = reviews.lookup(db, run_id)
         result["review"] = review_view(review) if review else None
         return result

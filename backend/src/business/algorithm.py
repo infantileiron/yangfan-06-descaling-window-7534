@@ -17,7 +17,7 @@ CATEGORY_FIELDS = {
 }
 
 
-def _partition(rows: list[dict]) -> dict[str, list[dict]]:
+def partition(rows: list[dict]) -> dict[str, list[dict]]:
     groups = {key: [] for key in COHORTS}
     unique_ids = set()
     for row in rows:
@@ -41,34 +41,50 @@ def _partition(rows: list[dict]) -> dict[str, list[dict]]:
     return groups
 
 
-def analyze(rows: list[dict], parameter: float) -> dict:
+def analyze(rows: list[dict], parameter: float, fit: DurationFit | None = None,
+            provenance: dict | None = None, version: dict | None = None) -> dict:
     if not isfinite(parameter) or not 30 <= parameter <= 720 or parameter != int(parameter):
         raise ValueError("班次容量需填写 30 到 720 之间的整数分钟数。")
     capacity = int(parameter)
-    groups = _partition(rows)
+    groups = partition(rows)
     candidates = sorted(groups["待派"], key=queue_order)
     if not candidates:
         raise ValueError("请至少填写一条带优先级的待派工单。")
 
-    fit = DurationFit.train(groups["训练"], groups["校准"], groups["核验"])
+    if fit is None:
+        # 升级前排队的计算单没有锁定版本，按原法用本单数据当场训练。
+        fit = DurationFit.train(groups["训练"], groups["校准"], groups["核验"])
+        provenance = {
+            "train_count": len(groups["训练"]),
+            "calibration_count": len(groups["校准"]),
+            "audit_mae": fit.audit_mae,
+            "audit_exceeded": fit.audit_exceeded,
+            "audit_count": fit.audit_count,
+        }
     decisions, assigned, used = reserve_shift(candidates, fit.forecasts(candidates), capacity)
     remainder = capacity - used
-    audit_coverage = f"{fit.audit_upper_covered}/{fit.audit_count}"
-    return {
+    audit_coverage = f"{provenance['audit_count'] - provenance['audit_exceeded']}/{provenance['audit_count']}"
+    notes = [
+        f"使用 {provenance['train_count']} 条完工工单拟合，"
+        f"以 {provenance['calibration_count']} 条独立完工工单增加 {fit.buffer:.1f} 分钟校准缓冲。",
+        f"独立核验中有 {audit_coverage} 处实际时间落在预留上界内。预留上界用于单处排班，"
+        "整班能否按时完成需结合进场情况确认。",
+        "时间从本班第一项维修开始累计。班次余量已预先扣除行程、交班和常规巡检。",
+    ]
+    if version:
+        notes.insert(0, f"本次预算按模型版本 {version['name']} 的拟合与校准结果计算。")
+    result = {
         "summary": f"{len(decisions)} 处饮水点中，{assigned} 处排入本班，已预留 {used} 分钟。",
         "metrics": [
             {"label": "本班安排", "value": assigned},
             {"label": "转下一班", "value": len(decisions) - assigned},
             {"label": "本班剩余分钟", "value": remainder},
-            {"label": "独立核验 MAE（分钟）", "value": round(fit.audit_mae, 2)},
+            {"label": "独立核验 MAE（分钟）", "value": round(provenance["audit_mae"], 2)},
             {"label": "独立核验上界覆盖", "value": audit_coverage},
         ],
         "rows": decisions,
-        "notes": [
-            f"使用 {len(groups['训练'])} 条完工工单拟合，"
-            f"以 {len(groups['校准'])} 条独立完工工单增加 {fit.buffer:.1f} 分钟校准缓冲。",
-            f"独立核验中有 {audit_coverage} 处实际时间落在预留上界内。预留上界用于单处排班，"
-            "整班能否按时完成需结合进场情况确认。",
-            "时间从本班第一项维修开始累计。班次余量已预先扣除行程、交班和常规巡检。",
-        ],
+        "notes": notes,
     }
+    if version:
+        result["model_version"] = version
+    return result

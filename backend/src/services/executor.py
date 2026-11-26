@@ -12,6 +12,7 @@ from src.constants.workflow import Stage
 from src.models.base import new_id, utcnow
 from src.models.dataset import Dataset
 from src.models.run import Run
+from src.services import models
 from src.services.audit import record
 from src.services.exports import result_keys
 from src.utils.csv_data import render_csv
@@ -43,7 +44,7 @@ def claim():
         run.started_at = utcnow()
         run.attempts += 1
         dataset = db.get(Dataset, run.dataset_id)
-        return run.id, run.lease, run.parameter, dataset.rows
+        return run.id, run.lease, run.parameter, run.model_version_id, dataset.rows
 
 
 def verify_result(result):
@@ -62,12 +63,21 @@ def verify_result(result):
 
 
 def execute(job):
-    run_id, lease, parameter, rows = job
+    run_id, lease, parameter, version_id, rows = job
     artifact = None
     result = None
     error = None
     try:
-        result = verify_result(analyze(rows, parameter))
+        if version_id:
+            # 排队时锁定的版本，重试也不更换。
+            version, fit = models.load_version(version_id)
+            result = analyze(
+                rows, parameter, fit=fit, provenance=models.provenance(version),
+                version={"id": version.id, "name": version.label},
+            )
+        else:
+            result = analyze(rows, parameter)
+        result = verify_result(result)
         artifact = f"{run_id}-{lease}.csv"
         path = ARTIFACTS / artifact
         temporary = path.with_suffix(".tmp")

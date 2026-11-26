@@ -107,7 +107,7 @@ tbody tr:hover { background: var(--side); }
   background: var(--side); border: 1px solid var(--line); border-radius: var(--radius);
   white-space: nowrap; font-size: .82rem; color: var(--ink);
 }
-.s-succeeded, .s-approve { color: var(--accent-ink); border-color: var(--accent); }
+.s-succeeded, .s-approve, .s-in_use { color: var(--accent-ink); border-color: var(--accent); }
 .s-failed, .s-hold { color: var(--error); }
 .empty, .review-record {
   padding: 1.35rem; margin: .75rem 0; background: var(--paper); border: 1px solid var(--line);

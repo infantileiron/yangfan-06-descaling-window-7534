@@ -10,6 +10,13 @@ from .work_order import ACCESS_TYPES, FIXTURES, HARDNESS_BANDS
 
 
 COVERAGE = 0.90
+MIN_TRAIN, MIN_CALIBRATION, MIN_AUDIT = 40, 20, 15
+COHORT_HINT = f"请准备至少 {MIN_TRAIN} 条训练、{MIN_CALIBRATION} 条校准及 {MIN_AUDIT} 条独立核验工单。"
+
+
+def check_cohorts(history: list[dict], calibration: list[dict], audit: list[dict]) -> None:
+    if len(history) < MIN_TRAIN or len(calibration) < MIN_CALIBRATION or len(audit) < MIN_AUDIT:
+        raise ValueError(COHORT_HINT)
 
 
 def _expert_features(row: dict) -> list:
@@ -36,14 +43,13 @@ def _minutes(rows: list[dict]) -> np.ndarray:
 class DurationFit:
     model: HistGradientBoostingRegressor
     buffer: float
-    audit_mae: float
-    audit_upper_covered: int
-    audit_count: int
+    audit_mae: float = 0.0
+    audit_upper_covered: int = 0
+    audit_count: int = 0
 
     @classmethod
     def train(cls, history: list[dict], calibration: list[dict], audit: list[dict]) -> "DurationFit":
-        if len(history) < 40 or len(calibration) < 20 or len(audit) < 15:
-            raise ValueError("请准备至少 40 条训练、20 条校准及 15 条独立核验工单。")
+        check_cohorts(history, calibration, audit)
         if len({row["actual_minutes"] for row in history}) < 2:
             raise ValueError("训练工单的实际停用时长相同，无法拟合工时差异。")
 
@@ -62,15 +68,25 @@ class DurationFit:
         rank = ceil((len(calibration) + 1) * COVERAGE)
         buffer = max(0.0, float(signed_residual[rank - 1]))
 
-        audit_center = cls.predict(estimator, audit)
-        audit_actual = _minutes(audit)
-        mae = float(np.abs(audit_actual - audit_center).mean())
-        covered = int((audit_actual <= np.ceil(audit_center + buffer)).sum())
-        return cls(estimator, buffer, mae, covered, len(audit))
+        fit = cls(estimator, buffer)
+        mae, exceeded, count = fit.assess(audit)
+        return cls(estimator, buffer, mae, count - exceeded, count)
 
     @staticmethod
     def predict(estimator: HistGradientBoostingRegressor, rows: list[dict]) -> np.ndarray:
         return np.maximum(1, estimator.predict(_inputs(rows)))
+
+    @property
+    def audit_exceeded(self) -> int:
+        return self.audit_count - self.audit_upper_covered
+
+    def assess(self, rows: list[dict]) -> tuple[float, int, int]:
+        """Score held-out completion records without using them for training or calibration."""
+        actual = _minutes(rows)
+        center = self.predict(self.model, rows)
+        mae = float(np.abs(actual - center).mean())
+        exceeded = int((actual > np.ceil(center + self.buffer)).sum())
+        return mae, exceeded, len(rows)
 
     def forecasts(self, rows: list[dict]) -> list[tuple[float, int]]:
         estimates = self.predict(self.model, rows)

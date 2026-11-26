@@ -24,10 +24,11 @@ export async function runsPage(profile, account, id) {
       `<div class="board"><aside class="side"><h2>计算设置</h2>${form}</aside>
       <section class="work"><div class="work-head"><h2>计算记录</h2><button type="button" class="quiet" id="refresh-runs">刷新</button></div>
       ${runs.length ? table([
-        {key:'label',label:'计算单'}, {key:'parameter',label:parameter.label}, {key:'status',label:'状态'},
-        {key:'created_at',label:'提交时间'},
+        {key:'label',label:'计算单'}, {key:'parameter',label:parameter.label}, {key:'model_version',label:'模型版本'},
+        {key:'status',label:'状态'}, {key:'created_at',label:'提交时间'},
       ], runs, (run, column, value) => {
         if (column.key === 'label') return `<a href="#results/${run.id}">${e(value)}</a>`;
+        if (column.key === 'model_version') return e(value?.name);
         if (column.key === 'status') return status(value);
         return column.key === 'created_at' ? e(timeText(value)) : e(value);
       }) : empty('等待首个计算单', '选择数据和参数后提交计算，随后可以在此查看记录。')}
