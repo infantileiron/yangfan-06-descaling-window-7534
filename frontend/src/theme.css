@@ -1,0 +1,19 @@
+@import url("https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Barlow+Semi+Condensed:wght@400;600;700&display=swap");
+:root {
+  color-scheme: light;
+  --font-display: "Barlow Semi Condensed";
+  --font-body: "Atkinson Hyperlegible Next";
+  --radius: 0.15rem;
+  --gutter: clamp(1.05rem, 3vw, 3.5rem);
+  --canvas: oklch(96% 0.018 222);
+  --paper: oklch(98% 0.009 222);
+  --side: oklch(92% 0.029 222);
+  --ink: oklch(25% 0.037 222);
+  --muted: oklch(43% 0.043 222);
+  --line: oklch(81% 0.04 222);
+  --accent: oklch(44% 0.082 222);
+  --accent-ink: oklch(37% 0.082 222);
+  --on-accent: oklch(98% 0.011 222);
+  --table-alt: oklch(96% 0.012 222);
+  --error: oklch(42% 0.15 25);
+}

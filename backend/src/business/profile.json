@@ -1,0 +1,73 @@
+{
+  "title": "泉廊便民 · 公共饮水点除垢工时预算",
+  "subtitle": "估算每处饮水点的停用工时，按优先级给下一班预留维修时间。",
+  "team": "泉廊便民设施运维组，9 人轮值，服务 24 个街区便民站。",
+  "workflow": "巡检员抄录机型、维护间隔和现场水垢分级，排班员从上月完工工单中挑相似案例，按估计时长手工填写停用公告与班次交接单。",
+  "pain_points": [
+    "相同垢级在不同出水口构型上的工时差异大。",
+    "交班表只写平均时间，班次末端容易欠下未完工项目。",
+    "个别点位体量大且替代点远，按报修先后会推迟优先点位。"
+  ],
+  "upstream": "现场巡检台账与完工工单。历史样本记录从设备停用到恢复开放的实际用时，计划样本只录排班前已知的现场条件。",
+  "downstream": "排班员按序确认工作队列，站点联系人根据工时预留发布暂时停用信息，班组回填实际用时。",
+  "labels": {
+    "datasets": "点位巡检与完工台账",
+    "runs": "班次工时预算",
+    "results": "停用预留顺序",
+    "handoff": "设施维修交接",
+    "input": "点位条件与历史分钟数",
+    "action": "测算并编排班次"
+  },
+  "algorithm": "梯度提升回归 · 留出误差校准与班次分配",
+  "method": "训练工单用机型、出口数、距上次维护天数、维护前硬度档、目视垢级和是否需登记进场拟合直方图梯度提升回归。中心预测以分钟计。校准集按真实分钟减中心预测排序，取 ceil((样本量 + 1) × 0.90) 对应残差，保留非负缓冲量，得到单个点位的 90% 校准工时上界，向上取整后占用班次。独立核验集计算 MAE 与上界覆盖。计划按核定优先级、维护间隔和单号排序，累加预留分钟，第一个无法排入的点位与其后续点位转到下一班。历史缺时长、计划行填入实际时长、训练或留出样本不足时需修正台账。",
+  "seed_name": "QL-1125-街区设施停用预留.csv",
+  "scenario": [
+    "08:30 汇入 QL-1125-街区设施停用预留.csv，确认有训练、校准、核验三组完工记录和 8 个待派点位。",
+    "08:45 核对 QL-P01 槐行广场西侧：落地式、3 个出口、距上次维护 145 天，垢级 4。",
+    "09:00 以工程师账号创建本班预算，预留可用 210 分钟。",
+    "09:05 核对独立留出 MAE 与覆盖口径，比较 QL-P01 和 QL-P06 的预留分钟。",
+    "09:10 在处置顺序中确认高优先级 QL-P01 优先入班，检查后续转下班点位。",
+    "09:15 导出设施维修交接表，交班员复核各点预留时间和剩余分钟。",
+    "13:30 站点联系人按交接单确认停用窗口，班组完工后回填实际时长。"
+  ],
+  "columns": [
+    {"key": "sample_id", "label": "工单号", "type": "text"},
+    {"key": "site", "label": "饮水点", "type": "text"},
+    {"key": "cohort", "label": "样本用途", "type": "text", "choices": ["训练", "校准", "核验", "待派"]},
+    {"key": "fixture", "label": "设备构型", "type": "text", "choices": ["壁挂式", "台面式", "落地式"]},
+    {"key": "outlets", "label": "出水口数", "type": "number", "min": 1, "max": 6},
+    {"key": "idle_days", "label": "距上次维护（天）", "type": "number", "min": 1, "max": 365},
+    {"key": "hardness_band", "label": "巡检硬度档", "type": "text", "choices": ["低", "中", "高"]},
+    {"key": "scale_grade", "label": "目视垢级", "type": "number", "min": 0, "max": 4},
+    {"key": "access", "label": "进场方式", "type": "text", "choices": ["直接进场", "前台登记"]},
+    {"key": "priority", "label": "已核定优先级", "type": "text", "choices": ["高", "中", "常规"]},
+    {"key": "actual_minutes", "label": "实际停用时间（分钟）", "type": "number", "min": 1, "max": 720, "optional": true}
+  ],
+  "parameter": {
+    "key": "shift_minutes",
+    "label": "本班可用分钟",
+    "default": 210,
+    "min": 30,
+    "max": 720,
+    "step": 15,
+    "description": "填写已经扣除交通、交接和其他巡检工作的维修时间。"
+  },
+  "result_columns": [
+    {"key": "sample_id", "label": "工单号"},
+    {"key": "site", "label": "饮水点"},
+    {"key": "priority", "label": "优先级"},
+    {"key": "estimate", "label": "中心估计（分）"},
+    {"key": "reserve", "label": "预留上界（分）"},
+    {"key": "shift_offset", "label": "本班相对时间"},
+    {"key": "decision", "label": "交班安排"}
+  ],
+  "chart": {"key": "reserve", "label": "停用预留分钟"},
+  "theme": {
+    "display": "Barlow Semi Condensed",
+    "body": "Atkinson Hyperlegible Next",
+    "hue": 222,
+    "chroma": 0.082,
+    "dark": false,
+    "layout": "ledger"
+  }
+}
